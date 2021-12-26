@@ -1,0 +1,3 @@
+rootProject.name = "alinkit"
+include ':app'
+include ':library'
