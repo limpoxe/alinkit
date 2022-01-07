@@ -100,17 +100,18 @@ public class DeviceManager {
         DeviceEntry deviceEntry = getGwDev();
         if (deviceEntry != null) {
             if (deviceEntry.getStatus() == DeviceEntry.CONNECTED) {
-                LogUtil.log("网关设备在线");
+                LogUtil.log("网关设备在线：" + deviceEntry.getLinkitInfo().deviceName);
                 if (System.currentTimeMillis() - mLastPingCloudTimeInMs > PING_CLOUD_INTERV) {
-                    LogUtil.log("每隔[ms:" + PING_CLOUD_INTERV +"]ping一次云端(利用NTP接口)");
+                    LogUtil.log("至少隔[ms:" + PING_CLOUD_INTERV +"]ping一次云端(利用NTP接口)");
                     mLastPingCloudTimeInMs = System.currentTimeMillis();
                     deviceEntry.pingCloud();
                 }
 
-                List<DeviceEntry> list = getSubDev();
-                if (list != null && list.size() > 0) {
-                    for(DeviceEntry entry : list) {
+                List<DeviceEntry> subDevList = getSubDev();
+                if (subDevList != null && subDevList.size() > 0) {
+                    for(DeviceEntry entry : subDevList) {
                         if (entry.getStatus() == DeviceEntry.CONNECTED) {
+                            LogUtil.log("子设备在线：" + entry.getLinkitInfo().deviceName);
                             //entry.pingCloud();
                         } else {
                             LogUtil.log("子设备不在线，尝试上线：" + entry.getLinkitInfo().deviceName);
