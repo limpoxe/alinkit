@@ -5,16 +5,22 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.limpoxe.alinkit.DeviceManager;
+import com.limpoxe.alinkit.GateWay;
 import com.limpoxe.alinkit.LinkitInfo;
 import com.limpoxe.alinkit.LogUtil;
+import com.limpoxe.alinkit.ThingModel;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
-
+    private boolean added = false;
     private Handler handler = new Handler(Looper.getMainLooper());
     private Runnable checkRunnable = new Runnable() {
         @Override
@@ -34,7 +40,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        //打开日志
+        GateWay.debugOn();
         LogUtil.setLogger(new LogUtil.Logger() {
             @Override
             public void log(String msg) {
@@ -67,9 +74,97 @@ public class MainActivity extends AppCompatActivity {
                     protected Object doInBackground(Object[] objects) {
                         DeviceManager.getInstance().addDev(linkitInfo);
                         DeviceManager.getInstance().addDev(subLinkitInfo);
+                        added = true;
                         return null;
                     }
                 }.execute();
+            }
+        });
+
+        findViewById(R.id.btn_service).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (!added) {
+                    return;
+                }
+                ThingModel.addServiceCallback(
+                        DeviceManager.getInstance().getGwDev().getLinkitInfo().deviceName,
+                        "NoticeCancel",
+                        new ThingModel.ServiceCallback() {
+                            @Override
+                            public void handleService(String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
+                                String msgID = (String)params.get("msgID");
+                                Toast.makeText(MainActivity.this.getApplicationContext(), "NoticeCancel(" + msgID + ")", Toast.LENGTH_SHORT).show();
+                                // 响应服务
+                                Map<String, Object> result = new HashMap<>();
+                                result.put("retCode", 1);
+                                result.put("retMsg", "Message " + msgID + " Canceled!");
+                                serviceResponser.send(result);
+                            }
+                        });
+                ThingModel.addServiceCallback(
+                        DeviceManager.getInstance().getGwDev().getLinkitInfo().deviceName,
+                        "NoticeDisplay",
+                        new ThingModel.ServiceCallback() {
+                            @Override
+                            public void handleService(String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
+                                String content = (String)params.get("DisplayContent");
+                                String msgID = (String)params.get("msgID");
+                                Toast.makeText(MainActivity.this.getApplicationContext(), content + "(" + msgID + ")", Toast.LENGTH_SHORT).show();
+                                // 响应服务
+                                Map<String, Object> result = new HashMap<>();
+                                result.put("retCode", 1);
+                                result.put("retMsg", "Message Showed!");
+                                serviceResponser.send(result);
+                            }
+                        });
+                ThingModel.addServiceCallback(
+                        DeviceManager.getInstance().getSubDev().get(0).getLinkitInfo().deviceName,
+                        "NoticeCancel",
+                        new ThingModel.ServiceCallback() {
+                            @Override
+                            public void handleService(String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
+                                String msgID = (String)params.get("msgID");
+                                Toast.makeText(MainActivity.this.getApplicationContext(), "NoticeCancel(" + msgID + ")", Toast.LENGTH_SHORT).show();
+                                // 响应服务
+                                Map<String, Object> result = new HashMap<>();
+                                result.put("retCode", 1);
+                                result.put("retMsg", "Message " + msgID + " Canceled!");
+                                serviceResponser.send(result);
+                            }
+                        });
+                ThingModel.addServiceCallback(
+                        DeviceManager.getInstance().getSubDev().get(0).getLinkitInfo().deviceName,
+                        "NoticeDisplay",
+                        new ThingModel.ServiceCallback() {
+                            @Override
+                            public void handleService(String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
+                                String content = (String)params.get("DisplayContent");
+                                String msgID = (String)params.get("msgID");
+                                Toast.makeText(MainActivity.this.getApplicationContext(), content + "(" + msgID + ")", Toast.LENGTH_SHORT).show();
+                                // 响应服务
+                                Map<String, Object> result = new HashMap<>();
+                                result.put("retCode", 1);
+                                result.put("retMsg", "Message Showed!");
+                                serviceResponser.send(result);
+                            }
+                        });
+            }
+        });
+
+        findViewById(R.id.btn_post).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // 上报事件
+                Map<String, Object> result = new HashMap<>();
+                result.put("Status", 1);
+                result.put("Message", "It's OK");
+                ThingModel.postEvent(DeviceManager.getInstance().getGwDev().getLinkitInfo().deviceName,
+                        "StatusEvent", result);
+                // 上报属性
+                ThingModel.postProperty(DeviceManager.getInstance().getGwDev().getLinkitInfo().deviceName,
+                        "Version", "1.0");
+
             }
         });
 
