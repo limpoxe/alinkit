@@ -403,7 +403,7 @@ public class ThingModel {
                 payload.setId(mSyncResponser.msgId);
                 payload.setCode(200);
                 payload.setData(data);
-                mSyncResponser.payloadObj = GsonUtils.toJson(data);
+                mSyncResponser.payloadObj = GsonUtils.toJson(payload);
                 LogUtil.log("send : " + mSyncResponser.payloadObj);
                 LinkKit.getInstance().publish(mSyncResponser, new IConnectSendListener() {
                     @Override
