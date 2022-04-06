@@ -2,6 +2,9 @@ package com.limpoxe.alinkit;
 
 import android.content.Context;
 
+import com.aliyun.alink.linksdk.cmp.api.ConnectSDK;
+import com.aliyun.alink.linksdk.cmp.core.base.ConnectState;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -44,7 +47,7 @@ public class DeviceManager {
     public void addDev(LinkitInfo linkitInfo) {
         synchronized (mLock) {
             if (!mDeviceEntries.containsKey(linkitInfo.deviceName)) {
-                LogUtil.log("添加设备：" + linkitInfo.deviceName);
+                LogUtil.log(TAG, "添加设备：" + linkitInfo.deviceName);
                 mDeviceEntries.put(linkitInfo.deviceName, new DeviceEntry(linkitInfo));
             }
         }
@@ -56,7 +59,7 @@ public class DeviceManager {
             if (mDeviceEntries.containsKey(deviceName)) {
                 DeviceEntry deviceEntry = mDeviceEntries.get(deviceName);
                 deviceEntry.logout();
-                LogUtil.log("删除设备：" + deviceName);
+                LogUtil.log(TAG, "删除设备：" + deviceName);
                 mDeviceEntries.remove(deviceName);
             }
         }
@@ -96,13 +99,16 @@ public class DeviceManager {
         }
     }
 
+    public ConnectState getLinkConnectState() {
+        return ConnectSDK.getInstance().getConnectState(ConnectSDK.getInstance().getPersistentConnectId());
+    }
+
     public void beat() {
         DeviceEntry deviceEntry = getGwDev();
         if (deviceEntry != null) {
             if (deviceEntry.getStatus() == DeviceEntry.CONNECTED) {
-                LogUtil.log("网关设备在线：" + deviceEntry.getLinkitInfo().deviceName);
                 if (System.currentTimeMillis() - mLastPingCloudTimeInMs > PING_CLOUD_INTERV) {
-                    LogUtil.log("至少隔[ms:" + PING_CLOUD_INTERV +"]ping一次云端(利用NTP接口)");
+                    LogUtil.log(TAG, "隔[ms:" + PING_CLOUD_INTERV +"]ping一次云端(利用NTP接口)");
                     mLastPingCloudTimeInMs = System.currentTimeMillis();
                     deviceEntry.pingCloud();
                 }
@@ -111,22 +117,19 @@ public class DeviceManager {
                 if (subDevList != null && subDevList.size() > 0) {
                     for(DeviceEntry entry : subDevList) {
                         if (entry.getStatus() == DeviceEntry.CONNECTED) {
-                            LogUtil.log("子设备在线：" + entry.getLinkitInfo().deviceName);
                             //entry.pingCloud();
                         } else {
-                            LogUtil.log("子设备不在线，尝试上线：" + entry.getLinkitInfo().deviceName);
+                            LogUtil.log(TAG, "子设备不在线，尝试上线：" + entry.getLinkitInfo().deviceName);
                             entry.login();
                         }
                     }
-                } else {
-                    LogUtil.log("未发现子设备");
                 }
             } else {
-                LogUtil.log("网关设备不在线，尝试上线：" + deviceEntry.getLinkitInfo().deviceName);
+                LogUtil.log(TAG, "网关设备不在线，尝试上线：" + deviceEntry.getLinkitInfo().deviceName);
                 deviceEntry.login();
             }
         } else {
-            LogUtil.log("未发现网关设备");
+            LogUtil.log(TAG, "未发现网关设备");
         }
     }
 }

@@ -13,7 +13,7 @@ public class DeviceEntry implements Serializable {
     private LinkitInfo linkitInfo;
     private int status = DISCONNECTED;
 
-    public DeviceEntry(LinkitInfo linkitInfo) {
+    DeviceEntry(LinkitInfo linkitInfo) {
         this.linkitInfo = linkitInfo;
     }
 
@@ -44,7 +44,7 @@ public class DeviceEntry implements Serializable {
         } else {
             success = subOnline();
         }
-        LogUtil.log("设备连接" + linkitInfo.deviceName + (success?"成功":"失败"));
+        LogUtil.log(TAG, "设备连接" + linkitInfo.deviceName + (success?"成功":"失败"));
         if (success) {
             status = CONNECTED;
             onConnectSuccess();
@@ -56,14 +56,14 @@ public class DeviceEntry implements Serializable {
     private void onConnectSuccess() {
         if (LinkitInfo.DEV_TYPE_GW.equals(linkitInfo.deviceType)) {
             GateWay.timestamp();
-            List<DeviceEntry> list = DeviceManager.getInstance().getSubDev();
-            if (list != null && list.size() > 0) {
-                for(DeviceEntry entry : list) {
-                    LogUtil.log("有子设备，尝试登录设备：" + entry.getLinkitInfo().deviceName);
+            List<DeviceEntry> subDevList = DeviceManager.getInstance().getSubDev();
+            if (subDevList != null && subDevList.size() > 0) {
+                for(DeviceEntry entry : subDevList) {
+                    LogUtil.log(TAG, "有子设备，尝试登录设备：" + entry.getLinkitInfo().deviceName);
                     entry.login();
                 }
             } else {
-                LogUtil.log("未发现子设备");
+                LogUtil.log(TAG, "未发现子设备");
             }
         }
     }
@@ -83,7 +83,7 @@ public class DeviceEntry implements Serializable {
         GateWay.connect(DeviceManager.getInstance().getContext(),
             linkitInfo.productType,
             linkitInfo.productKey,
-            linkitInfo.productSecret,
+            null,
             linkitInfo.deviceName,
             linkitInfo.deviceSecret,
             new GateWay.OnActionSubDeviceListener() {
@@ -134,13 +134,13 @@ public class DeviceEntry implements Serializable {
     }
 
     private void gwOffline() {
-        List<DeviceEntry> list = DeviceManager.getInstance().getSubDev();
-        if (list != null && list.size() > 0) {
-            for(DeviceEntry entry : list) {
+        List<DeviceEntry> subDevList = DeviceManager.getInstance().getSubDev();
+        if (subDevList != null && subDevList.size() > 0) {
+            for(DeviceEntry entry : subDevList) {
                 entry.logout();
             }
         }
-        LogUtil.log("断开网关设备");
+        LogUtil.log(TAG, "断开网关设备");
         GateWay.disconnect();
     }
 
@@ -174,11 +174,11 @@ public class DeviceEntry implements Serializable {
             GateWay.ping(linkitInfo.deviceName, new GateWay.OnActionListener() {
                 @Override
                 public void onSuccess() {
-                    LogUtil.log("ping设备成功：" + linkitInfo.deviceName);
+                    LogUtil.log(TAG, "ping设备成功：" + linkitInfo.deviceName);
                 }
                 @Override
                 public void onFailed(String code, String msg) {
-                    LogUtil.log("ping设备失败：" + linkitInfo.deviceName);
+                    LogUtil.log(TAG, "ping设备失败：" + linkitInfo.deviceName);
                 }
             });
         }

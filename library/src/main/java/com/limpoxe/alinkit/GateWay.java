@@ -54,6 +54,10 @@ import java.util.List;
 import java.util.Map;
 
 public class GateWay {
+    public static final String PRODUCT_TYPE_GW     = "GATEWAY_NODE";
+    public static final String PRODUCT_TYPE_SUB    = "SUB_NODE";
+    public static final String PRODUCT_TYPE_DIRECT = "DIRECT_NODE";
+
     private static final Handler sHandler = new Handler(Looper.getMainLooper());
     private static List<DeviceInfo> sSubList = new ArrayList<>();
 
@@ -102,7 +106,7 @@ public class GateWay {
          */
         @Override
         public void onConnectStateChange(String connectId, ConnectState connectState) {
-            //LogUtil.log("onConnectStateChange " + connectId + " " + connectState.name());
+            LogUtil.log("onConnectStateChange " + connectId + " " + connectState.name());
         }
 
         /**
@@ -476,7 +480,7 @@ public class GateWay {
         }
         final DeviceInfo info = newDeviceInfo(deviceName, deviceSecret);
         //如果当前产品是网关的话，topo已经存在的情况，不需要再添加一次设备
-        if (isTopoAdded && LinkitInfo.PRODUCT_TYPE_GW.equals(productNodeType)) {
+        if (isTopoAdded && PRODUCT_TYPE_GW.equals(productNodeType)) {
             IGateway gateway = LinkKit.getInstance().getGateway();
             if (gateway == null) {
                 LogUtil.log("子设备上线失败:" + deviceName);
@@ -779,7 +783,7 @@ public class GateWay {
                     rrpcResponse.topic = ((MqttRrpcRequest) aRequest).topic;
                 }
                 //id应该是要从上面的data里面取出来，用来标记是对哪条消息的回复
-                //todo demo
+                //todo 回复的内容样例
                 rrpcResponse.payloadObj ="{\"id\":\"123\", \"code\":\"200\"" + ",\"data\":{} }";
 
                 LinkKit.getInstance().publish(rrpcResponse, new IConnectSendListener() {

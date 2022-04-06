@@ -245,7 +245,7 @@ public class ThingModel {
             if (list != null) {
                 for(Event event : list) {
                     if (event.getIdentifier().equals(eventName)) {
-                        LogUtil.log("postEvent " + deviceName + " " + eventName);
+                        LogUtil.log("postEvent " + deviceName + " " + eventName + " " + LogUtil.safeToString(eventData));
                         List<Arg> output = event.getOutputData();
                         Map<String, ValueWrapper> data = new HashMap<>();
                         for(Arg arg : output) {
@@ -253,7 +253,7 @@ public class ThingModel {
                                 if (TmpConstant.TYPE_VALUE_INTEGER.equals(arg.getDataType().getType())) {
                                     data.put(arg.getIdentifier(), new ValueWrapper.IntValueWrapper((Integer)eventData.get(arg.getIdentifier())));
                                 } else if (TmpConstant.TYPE_VALUE_DOUBLE.equals(arg.getDataType().getType())) {
-                                    data.put(arg.getIdentifier(), new ValueWrapper.DoubleValueWrapper((Double)eventData.get(arg.getIdentifier())));
+                                    data.put(arg.getIdentifier(), new ValueWrapper.DoubleValueWrapper(Double.valueOf(String.valueOf(eventData.get(arg.getIdentifier())))));
                                 } else if (TmpConstant.TYPE_VALUE_BOOLEAN.equals(arg.getDataType().getType())) {
                                     data.put(arg.getIdentifier(), new ValueWrapper.BooleanValueWrapper((Boolean)eventData.get(arg.getIdentifier())?1:0));
                                 } else if (TmpConstant.TYPE_VALUE_TEXT.equals(arg.getDataType().getType())) {
@@ -363,7 +363,7 @@ public class ThingModel {
         }
 
         public void send(Map<String, Object> result) {
-            LogUtil.log("回复服务执行成功的结果 " + mDeviceName + " " + mServiceName);
+            LogUtil.log("回复服务执行成功的结果 " + mDeviceName + " " + mServiceName + " " + LogUtil.safeToString(result));
             List<Service> services = getServiceNames(mDeviceName);
             Service targetService = null;
             if (services != null) {
