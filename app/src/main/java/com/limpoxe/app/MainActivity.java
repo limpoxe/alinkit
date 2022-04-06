@@ -60,14 +60,14 @@ public class MainActivity extends AppCompatActivity {
                         "4dcf5f02c80e38d3756967b2977a5d98",
                         "ce4e4c0e4e5b40aa8888b67a13f5ff02",
                         LinkitInfo.DEV_TYPE_GW,
-                        LinkitInfo.PRODUCT_TYPE_GW);
+                        GateWay.PRODUCT_TYPE_GW);
                 //aliyun物联网三元组
                 LinkitInfo subLinkitInfo = new LinkitInfo(
                         "grvltir7CLT",
                         "4dcf5f02c80e38d3756967b2977a5_01",
                         "aa856073f3b95704b71581c8114a9a68",
                         LinkitInfo.DEV_TYPE_SUB,
-                        LinkitInfo.PRODUCT_TYPE_GW);
+                        GateWay.PRODUCT_TYPE_GW);
 
                 new AsyncTask() {
                     @Override
