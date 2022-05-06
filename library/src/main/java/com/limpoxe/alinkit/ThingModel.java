@@ -39,14 +39,14 @@ public class ThingModel {
     private static final HashMap<String, ServiceCallback> sServiceCallback = new HashMap<>();
     private static final HashMap<String, TopicCallback> sTopicCallback = new HashMap<>();
 
-    public static IThing getTarget(String deviceName) {
+    public static IThing getTarget(String productKey, String deviceName) {
         if (deviceName.equals(GateWay.getDeviceName())) {
             //主设备
             return LinkKit.getInstance().getDeviceThing();
         } else {
             //子设备
             BaseInfo baseInfo = new BaseInfo();
-            baseInfo.productKey = GateWay.getProductKey();
+            baseInfo.productKey = productKey;
             baseInfo.deviceName = deviceName;
             IGateway gateway = LinkKit.getInstance().getGateway();
             if (gateway == null) {
@@ -62,8 +62,8 @@ public class ThingModel {
     }
 
     //响应云端对设备端的服务调用并回复云端
-    static void setServiceHandler(String deviceName) {
-        IThing iThing = getTarget(deviceName);
+    static void setServiceHandler(String productKey, String deviceName) {
+        IThing iThing = getTarget(productKey, deviceName);
         if (iThing != null) {
             List<Service> services = iThing.getServices();
             if (services != null) {
@@ -73,7 +73,7 @@ public class ThingModel {
                         @Override
                         public void onProcess(String identify, Object result, ITResResponseCallback itResResponseCallback) {
                             LogUtil.log("收到异步服务调用: " + deviceName + " " + identify);
-                            ServiceCallback serviceCallback = getServiceCallback(deviceName, identify);
+                            ServiceCallback serviceCallback = getServiceCallback(productKey, deviceName, identify);
                             if (serviceCallback != null) {
                                 Map<String, ValueWrapper> data = (Map<String, ValueWrapper>) ((InputParams) result).getData();
                                 HashMap<String, Object> params = new HashMap();
@@ -85,7 +85,7 @@ public class ThingModel {
                                     }
                                 }
                                 LogUtil.log("调用自定义服务处理函数: " + deviceName + " " + identify);
-                                serviceCallback.handleService(deviceName, identify, params, new ServiceResponser(deviceName, service.getIdentifier(), null, itResResponseCallback));
+                                serviceCallback.handleService(productKey, deviceName, identify, params, new ServiceResponser(productKey, deviceName, service.getIdentifier(), null, itResResponseCallback));
                             } else {
                                 LogUtil.log("未注册此服务的处理函数: " + deviceName + " " + identify);
                             }
@@ -114,8 +114,8 @@ public class ThingModel {
 
     //响应云端对设备端的服务调用并回复云端
     //子设备在设置服务前必须先进行一次初始化
-    static void setSubDeviceServiceHandler(String deviceName, String deviceSecret) {
-        final DeviceInfo info = GateWay.newDeviceInfo(deviceName, deviceSecret);
+    static void setSubDeviceServiceHandler(String productKey, String deviceName, String deviceSecret) {
+        final DeviceInfo info = GateWay.newDeviceInfo(productKey, deviceName, deviceSecret);
         //这里可以使用这个map给子设备属性设置初始值
         Map<String, ValueWrapper> subDevInitState = new HashMap<>();
         IGateway gateway = LinkKit.getInstance().getGateway();
@@ -129,7 +129,7 @@ public class ThingModel {
             public void onSuccess(InitResult initResult) {
                 LogUtil.log("子设备初始化完成:" + deviceName);
                 //给子设置设置服务调用响应函数
-                setServiceHandler(deviceName);
+                setServiceHandler(productKey, deviceName);
             }
 
             @Override
@@ -139,12 +139,12 @@ public class ThingModel {
         });
     }
 
-    public static void addServiceCallback(String deviceName, String servcieName, ServiceCallback serviceCallback) {
-        sServiceCallback.put(deviceName + "/" + servcieName, serviceCallback);
+    public static void addServiceCallback(String productKey, String deviceName, String servcieName, ServiceCallback serviceCallback) {
+        sServiceCallback.put(productKey + "/" + deviceName + "/" + servcieName, serviceCallback);
     }
 
-    public static ServiceCallback getServiceCallback(String deviceName, String servcieName) {
-        return sServiceCallback.get(deviceName + "/" + servcieName);
+    public static ServiceCallback getServiceCallback(String productKey, String deviceName, String servcieName) {
+        return sServiceCallback.get(productKey + "/" + deviceName + "/" + servcieName);
     }
 
     public static void addTopicCallback(TopicCallback topicCallback) {
@@ -158,8 +158,8 @@ public class ThingModel {
     /**
      * 二进制数据上报，需要云端配置对应的脚本对数据进行解析
      */
-    public static void postRawProperties(String deviceName, byte[] rawData) {
-        IThing iThing = getTarget(deviceName);
+    public static void postRawProperties(String productKey, String deviceName, byte[] rawData) {
+        IThing iThing = getTarget(productKey, deviceName);
         if (iThing != null) {
             iThing.thingRawPropertiesPost(rawData, new IDevRawDataListener() {
                 @Override
@@ -178,17 +178,17 @@ public class ThingModel {
     }
 
     //上报属性
-    public static void postProperty(String deviceName, String propertyName, Object valueWrapper) {
+    public static void postProperty(String productKey, String deviceName, String propertyName, Object valueWrapper) {
         Map<String, Object> properties  = new HashMap<>();
         properties.put(propertyName, valueWrapper);
-        postProperties(deviceName, properties);
+        postProperties(productKey, deviceName, properties);
     }
 
     //上报属性
-    public static void postProperties(String deviceName, Map<String, Object> properties) {
-        IThing iThing = getTarget(deviceName);
+    public static void postProperties(String productKey, String deviceName, Map<String, Object> properties) {
+        IThing iThing = getTarget(productKey, deviceName);
         if (iThing != null) {
-            List<Property> list = ThingModel.getPropertyNames(deviceName);
+            List<Property> list = ThingModel.getPropertyNames(productKey, deviceName);
             if (list != null) {
                 Map<String, ValueWrapper> propMaps = new HashMap<>();
                 for (Property prop : list) {
@@ -233,15 +233,15 @@ public class ThingModel {
         }
     }
 
-    public static void postEvent(String deviceName, String eventName, Map<String, Object> eventData) {
-        postEvent(deviceName, eventName, eventData, null);
+    public static void postEvent(String productKey, String deviceName, String eventName, Map<String, Object> eventData) {
+        postEvent(productKey, deviceName, eventName, eventData, null);
     }
 
     //上报事件
-    public static void postEvent(String deviceName, String eventName, Map<String, Object> eventData, IPublishResourceListener listener) {
-        IThing iThing = getTarget(deviceName);
+    public static void postEvent(String productKey, String deviceName, String eventName, Map<String, Object> eventData, IPublishResourceListener listener) {
+        IThing iThing = getTarget(productKey, deviceName);
         if (iThing != null) {
-            List<Event> list = ThingModel.getEventNames(deviceName);
+            List<Event> list = ThingModel.getEventNames(productKey, deviceName);
             if (list != null) {
                 for(Event event : list) {
                     if (event.getIdentifier().equals(eventName)) {
@@ -300,8 +300,8 @@ public class ThingModel {
         }
     }
 
-    public static List<Property> getPropertyNames(String deviceName) {
-        IThing iThing = getTarget(deviceName);
+    public static List<Property> getPropertyNames(String productKey, String deviceName) {
+        IThing iThing = getTarget(productKey, deviceName);
         if (iThing != null) {
             return iThing.getProperties();
         } else {
@@ -310,8 +310,8 @@ public class ThingModel {
         return null;
     }
 
-    public static ValueWrapper getPropertyValue(String deviceName, String propertyName) {
-        IThing iThing = getTarget(deviceName);
+    public static ValueWrapper getPropertyValue(String productKey, String deviceName, String propertyName) {
+        IThing iThing = getTarget(productKey, deviceName);
         if (iThing != null) {
             return iThing.getPropertyValue(propertyName);
         } else {
@@ -320,8 +320,8 @@ public class ThingModel {
         return null;
     }
 
-    public static List<Event> getEventNames(String deviceName) {
-        IThing iThing = getTarget(deviceName);
+    public static List<Event> getEventNames(String productKey, String deviceName) {
+        IThing iThing = getTarget(productKey, deviceName);
         if (iThing != null) {
             return iThing.getEvents();
         } else {
@@ -330,8 +330,8 @@ public class ThingModel {
         return null;
     }
 
-    public static List<Service> getServiceNames(String deviceName) {
-        IThing iThing = getTarget(deviceName);
+    public static List<Service> getServiceNames(String productKey, String deviceName) {
+        IThing iThing = getTarget(productKey, deviceName);
         if (iThing != null) {
             return iThing.getServices();
         } else {
@@ -341,7 +341,7 @@ public class ThingModel {
     }
 
     public interface ServiceCallback {
-        void handleService(String deviceName, String serviceName, Map<String, Object> params, ServiceResponser serviceResponser);
+        void handleService(String productKey, String deviceName, String serviceName, Map<String, Object> params, ServiceResponser serviceResponser);
     }
 
     public interface TopicCallback {
@@ -350,12 +350,14 @@ public class ThingModel {
     }
 
     public static final class ServiceResponser {
+        private String mProductKey;
         private String mDeviceName;
         private String mServiceName;
         private MqttPublishRequest mSyncResponser;
         private ITResResponseCallback mAsyncResponser;
 
-        public ServiceResponser(String deviceName, String serviceName, MqttPublishRequest mqttPublishRequest, ITResResponseCallback callback) {
+        public ServiceResponser(String productKey, String deviceName, String serviceName, MqttPublishRequest mqttPublishRequest, ITResResponseCallback callback) {
+            this.mProductKey = productKey;
             this.mDeviceName = deviceName;
             this.mServiceName = serviceName;
             this.mSyncResponser = mqttPublishRequest;
@@ -364,7 +366,7 @@ public class ThingModel {
 
         public void send(Map<String, Object> result) {
             LogUtil.log("回复服务执行成功的结果 " + mDeviceName + " " + mServiceName + " " + LogUtil.safeToString(result));
-            List<Service> services = getServiceNames(mDeviceName);
+            List<Service> services = getServiceNames(mProductKey, mDeviceName);
             Service targetService = null;
             if (services != null) {
                 for(Service s : services) {

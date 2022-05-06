@@ -54,37 +54,28 @@ import java.util.List;
 import java.util.Map;
 
 public class GateWay {
-    public static final String PRODUCT_TYPE_GW     = "GATEWAY_NODE";
-    public static final String PRODUCT_TYPE_SUB    = "SUB_NODE";
-    public static final String PRODUCT_TYPE_DIRECT = "DIRECT_NODE";
-
     private static final Handler sHandler = new Handler(Looper.getMainLooper());
     private static List<DeviceInfo> sSubList = new ArrayList<>();
 
-    private static String productNodeType;
-    private static String productKey;
-    private static String productSecret;
-    private static String deviceName;
-    private static String deviceSecret;
+    private static String gwProductKey;
+    private static String gwProductSecret;
+    private static String gwDeviceName;
+    private static String gwDeviceSecret;
 
     private static long deltaTime;
 
-    public static final int STATUS_DISCONNECT = 0;
-    public static final int STATUS_CONNECTING = 1;
-    public static final int STATUS_CONNECTTED = 2;
-
-    private static int status = STATUS_DISCONNECT;
+    private static ConnectState status = ConnectState.DISCONNECTED;
 
     public static String getProductKey() {
-        return productKey;
+        return gwProductKey;
     }
 
     public static String getProductSecret() {
-        return productSecret;
+        return gwProductSecret;
     }
 
     public static String getDeviceName() {
-        return deviceName;
+        return gwDeviceName;
     }
 
     public static long getSystemTime() {
@@ -92,7 +83,7 @@ public class GateWay {
     }
 
     public static String getDeviceSecret() {
-        return deviceSecret;
+        return gwDeviceSecret;
     }
 
     private static IConnectNotifyListener sNotifyListener = new IConnectNotifyListener() {
@@ -107,6 +98,10 @@ public class GateWay {
         @Override
         public void onConnectStateChange(String connectId, ConnectState connectState) {
             LogUtil.log("onConnectStateChange " + connectId + " " + connectState.name());
+            status = connectState;
+            if (connectState == ConnectState.DISCONNECTED || connectState == ConnectState.CONNECTFAIL) {
+                com.limpoxe.alinkit.DeviceManager.getInstance().notifyDisconnected();
+            }
         }
 
         /**
@@ -126,9 +121,11 @@ public class GateWay {
                 JSONObject jsonData = JSON.parseObject(data);
                 String method = jsonData.getString("method");
                 if (method != null && method.startsWith("thing.service.")) {
-                    String deviceName = topic.split(getProductKey()+"/")[1].split("/")[0];
+                    String temp = topic.replace("/ext/rrpc/", "");
+                    String productKey = temp.substring(0, temp.indexOf("/"));
+                    String deviceName = topic.split(productKey+"/")[1].split("/")[0];
                     String serviceName = method.replace("thing.service.", "");
-                    ThingModel.ServiceCallback serviceCallback = ThingModel.getServiceCallback(deviceName, serviceName);
+                    ThingModel.ServiceCallback serviceCallback = ThingModel.getServiceCallback(productKey, deviceName, serviceName);
                     if (serviceCallback != null) {
                         JSONObject paramsJson = jsonData.getJSONObject("params");
                         Map<String, Object> params = null;
@@ -142,7 +139,7 @@ public class GateWay {
                         request.topic = topic;
                         request.msgId = topic.split("/")[3];
                         LogUtil.log("调用自定义服务处理函数: " + deviceName + " " + serviceName);
-                        serviceCallback.handleService(deviceName, serviceName, params, new ThingModel.ServiceResponser(deviceName, serviceName, request, null));
+                        serviceCallback.handleService(productKey, deviceName, serviceName, params, new ThingModel.ServiceResponser(productKey, deviceName, serviceName, request, null));
                     } else {
                         LogUtil.log("service handler not found: " + serviceName);
                     }
@@ -150,14 +147,16 @@ public class GateWay {
                     LogUtil.log(method + " not startsWith thing.service.");
                 }
             } else if (ConnectSDK.getInstance().getPersistentConnectId().equals(connectId) && !TextUtils.isEmpty(topic) &&
-                topic.startsWith("/sys/" + getProductKey() + "/" + getDeviceName() + "/rrpc/request/")) {
+                topic.startsWith("/sys/") && topic.contains("/rrpc/request/")) {
                 LogUtil.log("收到云端系统定义RRPC下行消息：" + connectId + " " + topic + " " + data);
                 JSONObject jsonData = JSON.parseObject(data);
                 String method = jsonData.getString("method");
                 if (method != null && method.startsWith("thing.service.")) {
-                    String deviceName = topic.split(getProductKey()+"/")[1].split("/")[0];
+                    String temp = topic.replace("/sys/", "");
+                    String productKey = temp.substring(0, temp.indexOf("/"));
+                    String deviceName = topic.split(productKey+"/")[1].split("/")[0];
                     String serviceName = method.replace("thing.service.", "");
-                    ThingModel.ServiceCallback serviceCallback = ThingModel.getServiceCallback(deviceName, serviceName);
+                    ThingModel.ServiceCallback serviceCallback = ThingModel.getServiceCallback(productKey, deviceName, serviceName);
                     if (serviceCallback != null) {
                         JSONObject paramsJson = jsonData.getJSONObject("params");
                         Map<String, Object> params = null;
@@ -171,7 +170,7 @@ public class GateWay {
                         request.topic = topic.replace("request", "response");
                         request.msgId = topic.split("/")[6];
                         LogUtil.log("调用自定义服务处理函数: " + deviceName + " " + serviceName);
-                        serviceCallback.handleService(deviceName, serviceName, params, new ThingModel.ServiceResponser(deviceName, serviceName, request, null));
+                        serviceCallback.handleService(productKey, deviceName, serviceName, params, new ThingModel.ServiceResponser(productKey, deviceName, serviceName, request, null));
                     } else {
                         LogUtil.log("service handler not found: " + serviceName);
                     }
@@ -179,20 +178,27 @@ public class GateWay {
                     LogUtil.log(method + " not startsWith thing.service.");
                 }
             } else if (ConnectSDK.getInstance().getPersistentConnectId().equals(connectId) && !TextUtils.isEmpty(topic) &&
-                topic.startsWith("/sys/" + getProductKey() + "/" + getDeviceName() + "/broadcast/request/")) {
+                topic.startsWith("/sys/") && topic.contains("/broadcast/request/")) {
                 LogUtil.log("收到云端批量广播下行：" + connectId + " " + topic + " " + data);
                 //无需订阅，云端免订阅，默认无需业务进行ack，但是也支持用户云端和设备端约定业务ack
                 //topic 格式：/sys/${pk}/${dn}/broadcast/request/+
             } else if (ConnectSDK.getInstance().getPersistentConnectId().equals(connectId) && !TextUtils.isEmpty(topic) &&
-                topic.startsWith("/broadcast/" + getProductKey())) {
+                topic.startsWith("/broadcast/")) {
                 LogUtil.log("收到云端广播下行：" + connectId + " " + topic + " " + data);
                 //topic 需要用户自己订阅才能收到，topic 格式：/broadcast/${pk}/${自定义action}，需要和云端发送topic一致
             } else if (ConnectSDK.getInstance().getPersistentConnectId().equals(connectId) && !TextUtils.isEmpty(topic)) {
                 LogUtil.log("收到topic云端下行：" + connectId + " " + topic + " " + data);
                 try {
-                    String[] ss = topic.split(getProductKey() + "/");
+                    String temp = "";
+                    if (topic.startsWith("/sys/")) {
+                        temp = topic.replace("/sys/", "");
+                    } else if (topic.startsWith("/ext/ntp/")) {
+                        temp = topic.replace("/ext/ntp/", "");
+                    }
+                    String productKey = temp.substring(0, temp.indexOf("/"));
+                    String[] ss = topic.split(productKey + "/");
                     String deviceName = ss[1].substring(0, ss[1].indexOf("/"));
-                    String normalTopic = topic.replace(getProductKey(), "{productKey}").replace(deviceName, "{deviceName}");
+                    String normalTopic = topic.replace(productKey, "{productKey}").replace(deviceName, "{deviceName}");
                     ThingModel.TopicCallback topicCallback = ThingModel.getTopicCallback(normalTopic);
                     if (topicCallback != null) {
                         topicCallback.handleTopic(deviceName, data);
@@ -219,11 +225,10 @@ public class GateWay {
     };
 
     private static void setup(String pt, String pk, String ps, String dn, String ds) {
-        productNodeType = pt;
-        productKey = pk;
-        productSecret = ps;
-        deviceName = dn;
-        deviceSecret = ds;
+        gwProductKey = pk;
+        gwProductSecret = ps;
+        gwDeviceName = dn;
+        gwDeviceSecret = ds;
     }
 
     public static void debugOn() {
@@ -235,14 +240,18 @@ public class GateWay {
 
     //主设备上线
     public static void connect(Context context, String pt, String pk, String ps, String dn, String ds, OnActionSubDeviceListener listener) {
-        if (status == STATUS_DISCONNECT) {
-            status = STATUS_CONNECTING;
+        if (status == ConnectState.DISCONNECTED) {
+            status = ConnectState.CONNECTING;
             setup(pt, pk, ps, dn, ds);
             LogUtil.log("GateWay连接中[" + getProductKey() + "," + getDeviceName() + "]...");
             doConnect(context, listener);
-        } else if (status == STATUS_CONNECTING) {
+        } else if (status == ConnectState.CONNECTING) {
             if (listener != null) {
                 listener.onFailed("CONNECTING", "正在连接中！");
+            }
+        } else if (status == ConnectState.CONNECTFAIL) {
+            if (listener != null) {
+                listener.onFailed("CONNECTFAIL", "连接失败");
             }
         } else {
             if (listener != null) {
@@ -260,7 +269,7 @@ public class GateWay {
         // MqttConfigure.mqttPassWord = password;
         // MqttConfigure.mqttClientId = clientId;
         // 构造三元组信息对象
-        DeviceInfo deviceInfo = newDeviceInfo(getDeviceName(), getDeviceSecret());
+        DeviceInfo deviceInfo = newDeviceInfo(getProductKey(), getDeviceName(), getDeviceSecret());
         //  全局默认域名
         IoTApiClientConfig userData = new IoTApiClientConfig();
         // 设备的一些初始化属性，可以根据云端的注册的属性来设置。
@@ -280,7 +289,7 @@ public class GateWay {
          */
         IoTH2Config ioTH2Config = new IoTH2Config();
         //设备端sn，这里使用deviceName替代
-        ioTH2Config.clientId = deviceName;
+        ioTH2Config.clientId = gwDeviceName;
         ioTH2Config.endPoint = "https://" + getProductKey() + ioTH2Config.endPoint;// 线上环境
         params.iotH2InitParams = ioTH2Config;
         Id2ItlsSdk.init(context);
@@ -318,7 +327,7 @@ public class GateWay {
         LinkKit.getInstance().init(context, params, new ILinkKitConnectListener() {
             @Override
             public void onError(AError aError) {
-                status = STATUS_DISCONNECT;
+                status = ConnectState.DISCONNECTED;
                 LogUtil.log("GateWay连接失败，code: " + aError.getCode() + " msg: " + aError.getMsg());
                 if (listener != null) {
                     sHandler.post(new Runnable() {
@@ -332,7 +341,7 @@ public class GateWay {
 
             @Override
             public void onInitDone(Object o) {
-                status = STATUS_CONNECTTED;
+                status = ConnectState.CONNECTED;
                 LogUtil.log("GateWay连接成功");
                 if (listener != null) {
                     sHandler.post(new Runnable() {
@@ -343,12 +352,12 @@ public class GateWay {
                     });
                 }
                 //设置服务处理函数
-                ThingModel.setServiceHandler(getDeviceName());
+                ThingModel.setServiceHandler(getProductKey(), getDeviceName());
 
                 ThingModel.addTopicCallback(new TimestampSyncListener());
 
                 //订阅时间戳同步消息
-                subscribe(getDeviceName(), TimestampSyncListener.TOPIC_SUB);
+                subscribe(getProductKey(), getDeviceName(), TimestampSyncListener.TOPIC_SUB);
 
                 //更新本地topo列表
                 querySubDevices(null);
@@ -364,7 +373,7 @@ public class GateWay {
     }
 
     public static void disconnect() {
-        status = STATUS_DISCONNECT;
+        status = ConnectState.DISCONNECTED;
         LogUtil.log("gw disconnect");
         LinkKit.getInstance().deinit();
     }
@@ -410,8 +419,8 @@ public class GateWay {
     }
 
     //添加主-子拓扑结构
-    public static void addSubDevice(String deviceName, String deviceSecret, OnActionSubDeviceListener listener) {
-        final DeviceInfo info = newDeviceInfo(deviceName, deviceSecret);
+    public static void addSubDevice(String productKey, String deviceName, String deviceSecret, OnActionSubDeviceListener listener) {
+        final DeviceInfo info = newDeviceInfo(productKey, deviceName, deviceSecret);
         IGateway gateway = LinkKit.getInstance().getGateway();
         if (gateway == null) {
             LogUtil.log("添加子设备topo失败");
@@ -468,7 +477,7 @@ public class GateWay {
     }
 
     //主设备代理子设备上线
-    public static void subDeviceOnline(String deviceName, String deviceSecret, OnActionSubDeviceListener listener) {
+    public static void subDeviceOnline(String productKey, String deviceName, String deviceSecret, OnActionSubDeviceListener listener) {
         boolean isTopoAdded = false;
         if (sSubList != null) {
             for (DeviceInfo deviceInfo : sSubList) {
@@ -478,47 +487,20 @@ public class GateWay {
                 }
             }
         }
-        final DeviceInfo info = newDeviceInfo(deviceName, deviceSecret);
-        //如果当前产品是网关的话，topo已经存在的情况，不需要再添加一次设备
-        if (isTopoAdded && PRODUCT_TYPE_GW.equals(productNodeType)) {
-            IGateway gateway = LinkKit.getInstance().getGateway();
-            if (gateway == null) {
-                LogUtil.log("子设备上线失败:" + deviceName);
-                listener.onFailed("-1", "gw device not ready");
-                return;
-            }
-            gateway.gatewaySubDeviceLogin(info,
-                new ISubDeviceActionListener() {
-                    @Override
-                    public void onSuccess() {
-                        LogUtil.log("子设备上线成功:" + deviceName);
-                        if (listener != null) {
-                            listener.onSuccess();
-                        }
-                        //设置服务处理函数
-                        ThingModel.setSubDeviceServiceHandler(deviceName, deviceSecret);
-                    }
-
-                    @Override
-                    public void onFailed(AError aError) {
-                        LogUtil.log("子设备上线失败:" + deviceName);
-                        if (listener != null) {
-                            listener.onFailed("" + aError.getCode(), aError.getMsg());
-                        }
-                    }
-                });
-        } else {
-            //如果当前产品不是网关的话，topo已经存在的情况，也需要再添加一次设备，否则无法代理上线，不知道为啥
-            addSubDevice(deviceName, deviceSecret, new OnActionSubDeviceListener() {
-                @Override
-                public void onSuccess() {
-                    IGateway gateway = LinkKit.getInstance().getGateway();
-                    if (gateway == null) {
-                        LogUtil.log("子设备上线失败:" + deviceName);
-                        listener.onFailed("-1", "gw device not ready");
-                        return;
-                    }
-                    gateway.gatewaySubDeviceLogin(info,
+        if (isTopoAdded) {
+            LogUtil.log("子设备在topo列表中:" + deviceName);
+        }
+        final DeviceInfo info = newDeviceInfo(productKey, deviceName, deviceSecret);
+        addSubDevice(productKey, deviceName, deviceSecret, new OnActionSubDeviceListener() {
+            @Override
+            public void onSuccess() {
+                IGateway gateway = LinkKit.getInstance().getGateway();
+                if (gateway == null) {
+                    LogUtil.log("子设备上线失败:" + deviceName);
+                    listener.onFailed("-1", "gw device not ready");
+                    return;
+                }
+                gateway.gatewaySubDeviceLogin(info,
                         new ISubDeviceActionListener() {
                             @Override
                             public void onSuccess() {
@@ -527,7 +509,7 @@ public class GateWay {
                                     listener.onSuccess();
                                 }
                                 //设置服务处理函数
-                                ThingModel.setSubDeviceServiceHandler(deviceName, deviceSecret);
+                                ThingModel.setSubDeviceServiceHandler(productKey, deviceName, deviceSecret);
                             }
 
                             @Override
@@ -538,22 +520,21 @@ public class GateWay {
                                 }
                             }
                         });
-                }
+            }
 
-                @Override
-                public void onFailed(String code, String msg) {
-                    LogUtil.log("子设备上线失败:" + deviceName);
-                    if (listener != null) {
-                        listener.onFailed("" + code, msg);
-                    }
+            @Override
+            public void onFailed(String code, String msg) {
+                LogUtil.log("子设备上线失败:" + deviceName);
+                if (listener != null) {
+                    listener.onFailed("" + code, msg);
                 }
-            });
-        }
+            }
+        });
     }
 
     //主设备代理子设备下线
-    public static void subDeviceOffline(String deviceName, String deviceSecret, OnActionSubDeviceListener listener) {
-        final DeviceInfo info = newDeviceInfo(deviceName, deviceSecret);
+    public static void subDeviceOffline(String productKey, String deviceName, String deviceSecret, OnActionSubDeviceListener listener) {
+        final DeviceInfo info = newDeviceInfo(productKey, deviceName, deviceSecret);
         IGateway gateway = LinkKit.getInstance().getGateway();
         if (gateway == null) {
             LogUtil.log("子设备下线失败:" + deviceName);
@@ -580,8 +561,8 @@ public class GateWay {
     }
 
     //删除主-子拓扑结构
-    public static void deleteSubDevice(String deviceName, String deviceSecret) {
-        final DeviceInfo info = newDeviceInfo(deviceName, deviceSecret);
+    public static void deleteSubDevice(String productKey, String deviceName, String deviceSecret) {
+        final DeviceInfo info = newDeviceInfo(productKey, deviceName, deviceSecret);
         IGateway gateway = LinkKit.getInstance().getGateway();
         if (gateway == null) {
             LogUtil.log("删除拓扑失败:" + deviceName);
@@ -603,10 +584,9 @@ public class GateWay {
     }
 
     // 代理子设备RRPC同步服务订阅，订阅后收到同步服务调研会触发IConnectNotifyListener.onNotify函数
-    public static void subDeviceSubscribe(String deviceName, String deviceSecret, String topic) {
-        final DeviceInfo info = newDeviceInfo(deviceName, deviceSecret);
-        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}",
-            getProductKey());
+    public static void subDeviceSubscribe(String productKey, String deviceName, String deviceSecret, String topic) {
+        final DeviceInfo info = newDeviceInfo(productKey, deviceName, deviceSecret);
+        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}", productKey);
         IGateway gateway = LinkKit.getInstance().getGateway();
         if (gateway == null) {
             LogUtil.log("订阅失败:" + deviceName + " " + realTopic);
@@ -629,10 +609,9 @@ public class GateWay {
 
     // 代理子设备订阅topic
     // 这个应该是指非物模型的topic
-    public void subDeviceUnsubscribe(String deviceName, String deviceSecret, String topic) {
-        final DeviceInfo info = newDeviceInfo(deviceName, deviceSecret);
-        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}",
-            getProductKey());
+    public void subDeviceUnsubscribe(String productKey, String deviceName, String deviceSecret, String topic) {
+        final DeviceInfo info = newDeviceInfo(productKey, deviceName, deviceSecret);
+        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}", productKey);
         IGateway gateway = LinkKit.getInstance().getGateway();
         if (gateway == null) {
             LogUtil.log("取消订阅失败:" + deviceName + " " + realTopic);
@@ -654,10 +633,9 @@ public class GateWay {
     }
 
     // 代理子设备发布
-    public void subDevicePublish(String deviceName, String deviceSecret, String topic, String data) {
-        final DeviceInfo info = newDeviceInfo(deviceName, deviceSecret);
-        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}",
-            getProductKey());
+    public void subDevicePublish(String productKey, String deviceName, String deviceSecret, String topic, String data) {
+        final DeviceInfo info = newDeviceInfo(productKey, deviceName, deviceSecret);
+        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}", productKey);
         IGateway gateway = LinkKit.getInstance().getGateway();
         if (gateway == null) {
             LogUtil.log("发布失败:" + deviceName + " " + realTopic);
@@ -679,9 +657,8 @@ public class GateWay {
     }
 
     // 订阅
-    public static void subscribe(String deviceName, String topic) {
-        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}",
-            getProductKey());
+    public static void subscribe(String productKey, String deviceName, String topic) {
+        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}", productKey);
         MqttSubscribeRequest request = new MqttSubscribeRequest();
         request.topic = realTopic;
         request.isSubscribe = true;
@@ -699,10 +676,8 @@ public class GateWay {
     }
 
     // 取消订阅
-    public void unsubscribe(String deviceName, String topic) {
-        final DeviceInfo info = newDeviceInfo(deviceName, deviceSecret);
-        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}",
-            getProductKey());
+    public void unsubscribe(String productKey, String deviceName, String topic) {
+        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}", productKey);
         MqttSubscribeRequest request = new MqttSubscribeRequest();
         request.topic = realTopic;
         request.isSubscribe = true;
@@ -721,9 +696,8 @@ public class GateWay {
     }
 
     // 发布
-    public static void publish(String deviceName, String topic, String data, OnActionListener listener) {
-        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}",
-            getProductKey());
+    public static void publish(String productKey, String deviceName, String topic, String data, OnActionListener listener) {
+        String realTopic = topic.replace("{deviceName}", deviceName).replace("{productKey}", productKey);
         MqttPublishRequest request = new MqttPublishRequest();
         request.topic = realTopic;
         request.qos = 0;
@@ -783,7 +757,7 @@ public class GateWay {
                     rrpcResponse.topic = ((MqttRrpcRequest) aRequest).topic;
                 }
                 //id应该是要从上面的data里面取出来，用来标记是对哪条消息的回复
-                //todo 回复的内容样例
+                //todo cailiming 回复的内容样例，此功能目前没有使用到
                 rrpcResponse.payloadObj ="{\"id\":\"123\", \"code\":\"200\"" + ",\"data\":{} }";
 
                 LinkKit.getInstance().publish(rrpcResponse, new IConnectSendListener() {
@@ -814,19 +788,19 @@ public class GateWay {
     public static void timestamp() {
         LogUtil.log("同步时间戳");
         String data = "{\"deviceSendTime\":" + System.currentTimeMillis() + "}";
-        publish(getDeviceName(), TimestampSyncListener.TOPIC_PUB,  data, null);
+        publish(getProductKey(), getDeviceName(), TimestampSyncListener.TOPIC_PUB,  data, null);
     }
 
-    public static void ping(String deviceName, OnActionListener listener) {
+    public static void ping(String productKey, String deviceName, OnActionListener listener) {
         //利用发布请求时间戳主题的消息来测试设备是否在线，发布成功则表示在线
         String data = "{\"deviceSendTime\":" + System.currentTimeMillis() + "}";
-        publish(deviceName, TimestampSyncListener.TOPIC_PUB,  data, listener);
+        publish(productKey, deviceName, TimestampSyncListener.TOPIC_PUB,  data, listener);
     }
 
-    static DeviceInfo newDeviceInfo(String deviceName, String deviceSecret) {
+    static DeviceInfo newDeviceInfo(String productKey, String deviceName, String deviceSecret) {
         DeviceInfo info = new DeviceInfo();
-        info.productKey = getProductKey();
-        info.productSecret = getProductSecret();
+        info.productKey = productKey;
+        info.productSecret = null;
         info.deviceName = deviceName;
         info.deviceSecret = deviceSecret;
         return info;

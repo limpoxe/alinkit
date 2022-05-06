@@ -59,15 +59,13 @@ public class MainActivity extends AppCompatActivity {
                         "grvltir7CLT",
                         "4dcf5f02c80e38d3756967b2977a5d98",
                         "ce4e4c0e4e5b40aa8888b67a13f5ff02",
-                        LinkitInfo.DEV_TYPE_GW,
-                        GateWay.PRODUCT_TYPE_GW);
+                        LinkitInfo.NODE_TYPE_GW);
                 //aliyun物联网三元组
                 LinkitInfo subLinkitInfo = new LinkitInfo(
                         "grvltir7CLT",
                         "4dcf5f02c80e38d3756967b2977a5_01",
                         "aa856073f3b95704b71581c8114a9a68",
-                        LinkitInfo.DEV_TYPE_SUB,
-                        GateWay.PRODUCT_TYPE_GW);
+                        LinkitInfo.NODE_TYPE_SUB);
 
                 new AsyncTask() {
                     @Override
@@ -88,11 +86,12 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 ThingModel.addServiceCallback(
+                        DeviceManager.getInstance().getGwDev().getLinkitInfo().productKey,
                         DeviceManager.getInstance().getGwDev().getLinkitInfo().deviceName,
                         "NoticeCancel",
                         new ThingModel.ServiceCallback() {
                             @Override
-                            public void handleService(String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
+                            public void handleService(String productKey, String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
                                 String msgID = (String)params.get("msgID");
                                 Toast.makeText(MainActivity.this.getApplicationContext(), "NoticeCancel(" + msgID + ")", Toast.LENGTH_SHORT).show();
                                 // 响应服务
@@ -103,11 +102,12 @@ public class MainActivity extends AppCompatActivity {
                             }
                         });
                 ThingModel.addServiceCallback(
+                        DeviceManager.getInstance().getGwDev().getLinkitInfo().productKey,
                         DeviceManager.getInstance().getGwDev().getLinkitInfo().deviceName,
                         "NoticeDisplay",
                         new ThingModel.ServiceCallback() {
                             @Override
-                            public void handleService(String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
+                            public void handleService(String productKey, String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
                                 String content = (String)params.get("DisplayContent");
                                 String msgID = (String)params.get("msgID");
                                 Toast.makeText(MainActivity.this.getApplicationContext(), content + "(" + msgID + ")", Toast.LENGTH_SHORT).show();
@@ -119,11 +119,12 @@ public class MainActivity extends AppCompatActivity {
                             }
                         });
                 ThingModel.addServiceCallback(
+                        DeviceManager.getInstance().getSubDev().get(0).getLinkitInfo().productKey,
                         DeviceManager.getInstance().getSubDev().get(0).getLinkitInfo().deviceName,
                         "NoticeCancel",
                         new ThingModel.ServiceCallback() {
                             @Override
-                            public void handleService(String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
+                            public void handleService(String productKey, String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
                                 String msgID = (String)params.get("msgID");
                                 Toast.makeText(MainActivity.this.getApplicationContext(), "NoticeCancel(" + msgID + ")", Toast.LENGTH_SHORT).show();
                                 // 响应服务
@@ -134,11 +135,12 @@ public class MainActivity extends AppCompatActivity {
                             }
                         });
                 ThingModel.addServiceCallback(
+                        DeviceManager.getInstance().getSubDev().get(0).getLinkitInfo().productKey,
                         DeviceManager.getInstance().getSubDev().get(0).getLinkitInfo().deviceName,
                         "NoticeDisplay",
                         new ThingModel.ServiceCallback() {
                             @Override
-                            public void handleService(String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
+                            public void handleService(String productKey, String deviceName, String serviceName, Map<String, Object> params, ThingModel.ServiceResponser serviceResponser) {
                                 String content = (String)params.get("DisplayContent");
                                 String msgID = (String)params.get("msgID");
                                 Toast.makeText(MainActivity.this.getApplicationContext(), content + "(" + msgID + ")", Toast.LENGTH_SHORT).show();
@@ -159,10 +161,14 @@ public class MainActivity extends AppCompatActivity {
                 Map<String, Object> result = new HashMap<>();
                 result.put("Status", 1);
                 result.put("Message", "It's OK");
-                ThingModel.postEvent(DeviceManager.getInstance().getGwDev().getLinkitInfo().deviceName,
+                ThingModel.postEvent(
+                        DeviceManager.getInstance().getGwDev().getLinkitInfo().productKey,
+                        DeviceManager.getInstance().getGwDev().getLinkitInfo().deviceName,
                         "StatusEvent", result);
                 // 上报属性
-                ThingModel.postProperty(DeviceManager.getInstance().getGwDev().getLinkitInfo().deviceName,
+                ThingModel.postProperty(
+                        DeviceManager.getInstance().getGwDev().getLinkitInfo().productKey,
+                        DeviceManager.getInstance().getGwDev().getLinkitInfo().deviceName,
                         "Version", "1.0");
 
             }

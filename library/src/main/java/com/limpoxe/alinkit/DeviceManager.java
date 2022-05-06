@@ -71,7 +71,7 @@ public class DeviceManager {
             Iterator<Map.Entry<String, DeviceEntry>> itr = mDeviceEntries.entrySet().iterator();
             while (itr.hasNext()) {
                 Map.Entry<String, DeviceEntry> entry = itr.next();
-                if (LinkitInfo.DEV_TYPE_GW.equals(entry.getValue().getLinkitInfo().deviceType)) {
+                if (LinkitInfo.NODE_TYPE_GW.equals(entry.getValue().getLinkitInfo().nodeType)) {
                     return entry.getValue();
                 }
             }
@@ -85,7 +85,7 @@ public class DeviceManager {
             Iterator<Map.Entry<String, DeviceEntry>> itr = mDeviceEntries.entrySet().iterator();
             while (itr.hasNext()) {
                 Map.Entry<String, DeviceEntry> entry = itr.next();
-                if (LinkitInfo.DEV_TYPE_SUB.equals(entry.getValue().getLinkitInfo().deviceType)) {
+                if (LinkitInfo.NODE_TYPE_SUB.equals(entry.getValue().getLinkitInfo().nodeType)) {
                     sub.add(entry.getValue());
                 }
             }
@@ -108,14 +108,14 @@ public class DeviceManager {
         if (deviceEntry != null) {
             if (deviceEntry.getStatus() == DeviceEntry.CONNECTED) {
                 if (System.currentTimeMillis() - mLastPingCloudTimeInMs > PING_CLOUD_INTERV) {
-                    LogUtil.log(TAG, "隔[ms:" + PING_CLOUD_INTERV +"]ping一次云端(利用NTP接口)");
+                    LogUtil.log(TAG, "每隔[ms:" + PING_CLOUD_INTERV +"]ping一次云端(利用NTP接口)");
                     mLastPingCloudTimeInMs = System.currentTimeMillis();
                     deviceEntry.pingCloud();
                 }
 
-                List<DeviceEntry> subDevList = getSubDev();
-                if (subDevList != null && subDevList.size() > 0) {
-                    for(DeviceEntry entry : subDevList) {
+                List<DeviceEntry> list = getSubDev();
+                if (list != null && list.size() > 0) {
+                    for(DeviceEntry entry : list) {
                         if (entry.getStatus() == DeviceEntry.CONNECTED) {
                             //entry.pingCloud();
                         } else {
@@ -130,6 +130,17 @@ public class DeviceManager {
             }
         } else {
             LogUtil.log(TAG, "未发现网关设备");
+        }
+    }
+
+    public void notifyDisconnected() {
+        synchronized (mLock) {
+            Iterator<Map.Entry<String, DeviceEntry>> itr = mDeviceEntries.entrySet().iterator();
+            while (itr.hasNext()) {
+                Map.Entry<String, DeviceEntry> entry = itr.next();
+                LogUtil.log("setStatus DISCONNECTED for " + entry.getValue().getLinkitInfo().deviceName);
+                entry.getValue().setStatus(DeviceEntry.DISCONNECTED);
+            }
         }
     }
 }
