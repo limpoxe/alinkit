@@ -194,10 +194,17 @@ public class GateWay {
                         temp = topic.replace("/sys/", "");
                     } else if (topic.startsWith("/ext/ntp/")) {
                         temp = topic.replace("/ext/ntp/", "");
+                    } else if (topic.startsWith("/ext/error/")) {
+                        temp = topic.replace("/ext/error/", "");
                     }
                     String productKey = temp.substring(0, temp.indexOf("/"));
                     String[] ss = topic.split(productKey + "/");
-                    String deviceName = ss[1].substring(0, ss[1].indexOf("/"));
+                    String deviceName = null;
+                    if (ss[1].contains("/")) {
+                        deviceName = ss[1].substring(0, ss[1].indexOf("/"));
+                    } else {
+                        deviceName = ss[1];
+                    }
                     String normalTopic = topic.replace(productKey, "{productKey}").replace(deviceName, "{deviceName}");
                     ThingModel.TopicCallback topicCallback = ThingModel.getTopicCallback(normalTopic);
                     if (topicCallback != null) {
