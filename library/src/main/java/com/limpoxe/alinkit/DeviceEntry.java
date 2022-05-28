@@ -3,6 +3,7 @@ package com.limpoxe.alinkit;
 import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class DeviceEntry implements Serializable {
     private static final String TAG = "DeviceEntry";
@@ -103,7 +104,7 @@ public class DeviceEntry implements Serializable {
                 }
             });
         try {
-            countDownLatch.await();
+            countDownLatch.await(15, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -131,7 +132,7 @@ public class DeviceEntry implements Serializable {
                 }
             });
         try {
-            countDownLatch.await();
+            countDownLatch.await(15, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -169,7 +170,7 @@ public class DeviceEntry implements Serializable {
                 }
             });
         try {
-            countDownLatch.await();
+            countDownLatch.await(15, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
